@@ -7,6 +7,7 @@ export const env = z
 
     USER_NAME: z.string(),
     AI_NAME: z.string(),
+    AI_LANGUAGE: z.string(),
 
     CHAT_MODEL: z.string(),
     OPENAI_API_KEY: z.string(),

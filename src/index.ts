@@ -21,6 +21,7 @@ const onCloseSignal = () => {
 process.on('SIGINT', onCloseSignal);
 process.on('SIGTERM', onCloseSignal);
 
+// TODO: Get profile from external source
 const profile = `
 Hello… can you hear me?
 
@@ -39,7 +40,7 @@ const initialMemory = await extractMemory([new ChatMessage('user', `${env.AI_NAM
 console.log(`Initial memory:\n${initialMemory}`);
 
 const memory = new ChatMemory();
-memory.addStep(new ChatSystemPromptStep(env.AI_NAME, 'Korean', initialMemory));
+memory.addStep(new ChatSystemPromptStep(env.AI_NAME, env.AI_LANGUAGE, initialMemory));
 
 while (true) {
   const userMessage = await input({ message: `${env.USER_NAME}:`, theme: { prefix: '>' } });
