@@ -71,16 +71,22 @@ ${memory}
 export class ChatInputStep extends MemoryStep {
   constructor(
     private readonly chatHistory: string,
-    private readonly innerThought: string,
+    private innerThought: string,
     private readonly name: string,
   ) {
     super();
   }
 
-  toMessage(): ChatMessage {
-    return new ChatMessage(
-      'user',
-      `Latest chat history:
+  setInnerThought(thought: string) {
+    this.innerThought = thought;
+  }
+
+  toMessage(): ChatMessage[] {
+    if (this.innerThought) {
+      return [
+        new ChatMessage(
+          'user',
+          `Latest chat history:
 <chat_history>
 ${this.chatHistory}
 </chat_history>
@@ -91,6 +97,18 @@ ${this.innerThought}
 </thought>
 
 Your response as ${this.name}:`,
-    );
+        ),
+      ];
+    } else {
+      return [
+        new ChatMessage(
+          'user',
+          `Latest chat history:
+<chat_history>
+${this.chatHistory}
+</chat_history>`,
+        ),
+      ];
+    }
   }
 }

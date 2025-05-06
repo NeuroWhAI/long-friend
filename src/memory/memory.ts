@@ -1,14 +1,18 @@
 import { ChatMessage } from '@/ai/chat-message';
 
 export abstract class MemoryStep {
-  abstract toMessage(): ChatMessage;
+  abstract toMessage(): ChatMessage[];
 }
 
 export class Memory {
-  private steps: MemoryStep[] = [];
+  protected steps: MemoryStep[] = [];
 
   addStep(step: MemoryStep) {
     this.steps.push(step);
+  }
+
+  addSteps(steps: MemoryStep[]) {
+    this.steps.push(...steps);
   }
 
   getSteps(): MemoryStep[] {
@@ -20,7 +24,7 @@ export class Memory {
   }
 
   toMessages(): ChatMessage[] {
-    return this.steps.map((step) => step.toMessage());
+    return this.steps.flatMap((step) => step.toMessage());
   }
 }
 
@@ -29,8 +33,8 @@ export class SystemPromptStep extends MemoryStep {
     super();
   }
 
-  toMessage(): ChatMessage {
-    return new ChatMessage('system', this.prompt);
+  toMessage(): ChatMessage[] {
+    return [new ChatMessage('system', this.prompt)];
   }
 }
 
@@ -39,7 +43,7 @@ export class ResponseStep extends MemoryStep {
     super();
   }
 
-  toMessage(): ChatMessage {
-    return new ChatMessage('assistant', this.response);
+  toMessage(): ChatMessage[] {
+    return [new ChatMessage('assistant', this.response)];
   }
 }

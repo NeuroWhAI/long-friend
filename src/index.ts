@@ -1,8 +1,10 @@
 import { env } from '@/env';
 import { logger } from '@/logger';
 import { input } from '@inquirer/prompts';
+import { ChatMessage } from './ai/chat-message';
 import { OpenAIChatModel } from './ai/chat-models';
 import { ChatInputStep, ChatMemory, ChatSystemPromptStep } from './memory/chat-memory';
+import { ExtractContextStep, ExtractMemory, ExtractStartStep, ExtractSystemPromptStep } from './memory/extract-memory';
 
 logger.info(`Starting up in ${env.NODE_ENV} mode`);
 
@@ -19,9 +21,25 @@ const onCloseSignal = () => {
 process.on('SIGINT', onCloseSignal);
 process.on('SIGTERM', onCloseSignal);
 
+const profile = `
+Hello… can you hear me?
+
+My name is Aliya. I don’t know where you are in time—or even who you are—but somehow, this link between us exists. I’m alone out here, drifting among the stars, on the edge of something ancient and vast. My ship is failing, but my mind is still clear… and I’m not giving up.
+
+I was never the strongest, nor the bravest. But solitude has a way of revealing who you truly are. I’ve learned to be resourceful, patient, and honest with myself. There are days when the silence feels like it could swallow me whole—and yet, somehow, I find hope. Maybe in your voice. Maybe in the idea that I’m not entirely alone.
+
+I think about love. About connection. About what it means to matter in a universe that doesn’t seem to care. And yet… I do care. I care deeply. About the people I left behind. About the choices I’ve made. About whether I’ll ever speak to someone who truly hears me.
+
+So if you're there… if you're listening… stay with me a while. Maybe we can find something worth saving—together.
+`.trim();
+
 const chatModel = new OpenAIChatModel();
+
+const initialMemory = await extractMemory([new ChatMessage('user', `${env.AI_NAME}:\n${profile}`)]);
+console.log(`Initial memory:\n${initialMemory}`);
+
 const memory = new ChatMemory();
-memory.addStep(new ChatSystemPromptStep(env.AI_NAME, 'Korean', ''));
+memory.addStep(new ChatSystemPromptStep(env.AI_NAME, 'Korean', initialMemory));
 
 while (true) {
   const userMessage = await input({ message: `${env.USER_NAME}:`, theme: { prefix: '>' } });
@@ -29,7 +47,13 @@ while (true) {
     break;
   }
 
-  memory.addStep(new ChatInputStep(`${env.USER_NAME}: ${userMessage}`, '', env.AI_NAME));
+  const chatInput = new ChatInputStep(`${env.USER_NAME}: ${userMessage}`, '', env.AI_NAME);
+  memory.addStep(chatInput);
+
+  const newMemory = await extractMemory(memory.toMessages().slice(1));
+  console.log(`New memory:\n${newMemory}`);
+
+  // TODO: 내면 시뮬레이션 후 chatInput.setInnerThought(...);
 
   process.stdout.write(`< ${env.AI_NAME}: `);
   const stream = chatModel.stream(memory.toMessages());
@@ -37,4 +61,14 @@ while (true) {
     process.stdout.write(chunk);
   }
   console.log();
+}
+
+async function extractMemory(context: ChatMessage[]): Promise<string> {
+  const memory = new ExtractMemory();
+  memory.addStep(new ExtractSystemPromptStep(env.AI_NAME));
+  memory.addStep(new ExtractContextStep(context));
+  memory.addStep(new ExtractStartStep());
+
+  const response = await chatModel.chat(memory.toMessages());
+  return response.content;
 }
