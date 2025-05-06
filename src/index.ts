@@ -5,6 +5,8 @@ import { ChatMessage } from './ai/chat-message';
 import { OpenAIChatModel } from './ai/chat-models';
 import { ChatInputStep, ChatMemory, ChatSystemPromptStep } from './memory/chat-memory';
 import { ExtractContextStep, ExtractMemory, ExtractStartStep, ExtractSystemPromptStep } from './memory/extract-memory';
+import { InsideInputStep, InsideMemory, InsideSystemPromptStep } from './memory/inside-memory';
+import { ResponseStep } from './memory/memory';
 
 logger.info(`Starting up in ${env.NODE_ENV} mode`);
 
@@ -42,6 +44,9 @@ console.log(`Initial memory:\n${initialMemory}`);
 const memory = new ChatMemory();
 memory.addStep(new ChatSystemPromptStep(env.AI_NAME, env.AI_LANGUAGE, initialMemory));
 
+const insideMemory = new InsideMemory();
+insideMemory.addStep(new InsideSystemPromptStep(env.AI_NAME, env.AI_LANGUAGE, initialMemory));
+
 while (true) {
   const userMessage = await input({ message: `${env.USER_NAME}:`, theme: { prefix: '>' } });
   if (!userMessage) {
@@ -54,14 +59,23 @@ while (true) {
   const newMemory = await extractMemory(memory.toMessages().slice(1));
   console.log(`New memory:\n${newMemory}`);
 
-  // TODO: 내면 시뮬레이션 후 chatInput.setInnerThought(...);
+  insideMemory.addStep(new InsideInputStep(`${env.USER_NAME}: ${userMessage}`, newMemory, env.AI_NAME));
+  const innerThought = await chatModel.chat(insideMemory.toMessages());
+  console.log(`Inner thought:\n${innerThought.content}`);
+  insideMemory.addStep(new ResponseStep(innerThought.content));
 
+  chatInput.setInnerThought(innerThought.content);
+
+  const responseBuffer: string[] = [];
   process.stdout.write(`< ${env.AI_NAME}: `);
   const stream = chatModel.stream(memory.toMessages());
   for await (const chunk of stream) {
     process.stdout.write(chunk);
+    responseBuffer.push(chunk);
   }
   console.log();
+
+  memory.addStep(new ResponseStep(responseBuffer.join('')));
 }
 
 async function extractMemory(context: ChatMessage[]): Promise<string> {
