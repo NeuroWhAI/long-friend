@@ -1,6 +1,7 @@
 import { env } from '@/env';
 import OpenAI from 'openai';
 import { ChatMessage } from './chat-message';
+import { mergeMessages } from './utils';
 
 export abstract class ChatModel {
   abstract chat(messages: ChatMessage[]): Promise<ChatMessage>;
@@ -20,10 +21,7 @@ export class OpenAIChatModel extends ChatModel {
   async chat(messages: ChatMessage[]): Promise<ChatMessage> {
     const response = await this.openai.chat.completions.create({
       model: env.CHAT_MODEL,
-      messages: messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
+      messages: mergeMessages(messages),
       stream: false,
     });
 
@@ -33,10 +31,7 @@ export class OpenAIChatModel extends ChatModel {
   async *stream(messages: ChatMessage[]): AsyncGenerator<string, void, unknown> {
     const stream = await this.openai.chat.completions.create({
       model: env.CHAT_MODEL,
-      messages: messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
+      messages: mergeMessages(messages),
       stream: true,
     });
 
