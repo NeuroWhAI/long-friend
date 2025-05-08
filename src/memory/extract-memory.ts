@@ -23,6 +23,7 @@ Extract facts about **You** ("${name}"), **Other Participants** in the conversat
 
 - Extract core facts in clear, standalone sentences in English.
 - Each sentence should convey one distinct piece of information.
+- Each sentence should be self-contained and understandable without relying on others.
 - Present the extracted sentences as a list.
 - Focus on facts explicitly mentioned or strongly implied within the conversation.
 - **Clarity and Referencing:**
