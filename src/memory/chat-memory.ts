@@ -1,7 +1,15 @@
 import { ChatMessage } from '@/ai/chat-message';
 import { Memory, MemoryStep, SystemPromptStep } from './memory';
 
-export class ChatMemory extends Memory {}
+export class ChatMemory extends Memory {
+  removeThoughts() {
+    for (const step of this.steps) {
+      if (step instanceof ChatInputStep) {
+        step.setInnerThought('');
+      }
+    }
+  }
+}
 
 export class ChatSystemPromptStep extends SystemPromptStep {
   constructor(name: string, lang: string, memory: string) {
@@ -106,7 +114,9 @@ Your response as ${this.name}:`,
           `Latest chat history:
 <chat_history>
 ${this.chatHistory}
-</chat_history>`,
+</chat_history>
+
+Your response as ${this.name}:`,
         ),
       ];
     }

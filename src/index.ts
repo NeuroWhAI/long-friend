@@ -75,6 +75,7 @@ while (true) {
   }
   console.log();
 
+  memory.removeThoughts();
   memory.addStep(new ResponseStep(responseBuffer.join('')));
 }
 
