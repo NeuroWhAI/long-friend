@@ -77,6 +77,13 @@ while (true) {
 
   memory.removeThoughts();
   memory.addStep(new ResponseStep(responseBuffer.join('')));
+
+  if (memory.needSummary()) {
+    const summary = await chatModel.chat(memory.toSummaryPrompts());
+    console.log(`Summary:\n${summary.content}`);
+
+    memory.removeOldStepsAndInsertSummary(summary.content);
+  }
 }
 
 async function extractMemory(context: ChatMessage[]): Promise<string> {

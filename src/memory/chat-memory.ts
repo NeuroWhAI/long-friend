@@ -2,12 +2,56 @@ import { ChatMessage } from '@/ai/chat-message';
 import { Memory, MemoryStep, SystemPromptStep } from './memory';
 
 export class ChatMemory extends Memory {
+  private readonly minSummaryCount = 8;
+  private readonly preserveCount = 4;
+
   removeThoughts() {
     for (const step of this.steps) {
       if (step instanceof ChatInputStep) {
         step.setInnerThought('');
       }
     }
+  }
+
+  needSummary(): boolean {
+    return this.steps.length >= 1 + this.minSummaryCount + this.preserveCount;
+  }
+
+  toSummaryPrompts(): ChatMessage[] {
+    const summaryPrompt = `Summarize the conversation context using these guidelines:
+
+1. Focus only on essential information:
+   - Key facts and details discussed
+   - Important questions and their answers
+   - Decisions or conclusions reached
+   - Unresolved issues that need follow-up
+
+2. Format requirements:
+   - Create a concise bullet-point summary (5-10 points maximum)
+   - Maintain chronological order of the conversation
+   - Use simple, direct language with short sentences
+   - Avoid complex words, idioms, or ambiguous phrasing
+
+3. What to exclude:
+   - Small talk or pleasantries
+   - Redundant information
+   - Technical details unless critical to understanding
+
+4. Be objective and neutral in your summary, avoiding interpretation.`;
+    const messages = this.steps
+      .values()
+      .drop(1)
+      .take(this.steps.length - this.preserveCount - 1)
+      .flatMap((step) => step.toMessage());
+    return [
+      new ChatMessage('system', summaryPrompt),
+      ...messages,
+      new ChatMessage('user', 'Now, please summarize the conversation so far.'),
+    ];
+  }
+
+  removeOldStepsAndInsertSummary(summary: string) {
+    this.steps = [this.steps[0], new ChatSummaryStep(summary), ...this.steps.slice(-this.preserveCount)];
   }
 }
 
@@ -120,5 +164,23 @@ Your response as ${this.name}:`,
         ),
       ];
     }
+  }
+}
+
+export class ChatSummaryStep extends MemoryStep {
+  constructor(private readonly summary: string) {
+    super();
+  }
+
+  toMessage(): ChatMessage[] {
+    return [
+      new ChatMessage(
+        'user',
+        `Previous conversation summary:
+<summary>
+${this.summary}
+</summary>`,
+      ),
+    ];
   }
 }

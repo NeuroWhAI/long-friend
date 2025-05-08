@@ -15,10 +15,6 @@ export class Memory {
     this.steps.push(...steps);
   }
 
-  getSteps(): MemoryStep[] {
-    return this.steps;
-  }
-
   clear() {
     this.steps = [];
   }
