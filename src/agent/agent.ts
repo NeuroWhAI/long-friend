@@ -1,10 +1,8 @@
 import { format as formatTimeAgo } from 'timeago.js';
 import { ChatMessage } from '../ai/chat-message';
 import { OpenAIChatModel } from '../ai/chat-models';
-import { TeiClient } from '../ai/tei';
 import { db } from '../db/database';
 import { Network } from '../db/network';
-import { env } from '../env';
 import { logger } from '../logger';
 import { ChatInputStep, ChatMemory, ChatSystemPromptStep } from '../memory/chat-memory';
 import { ExtractContextStep, ExtractMemory, ExtractStartStep, ExtractSystemPromptStep } from '../memory/extract-memory';
@@ -15,7 +13,7 @@ export class Agent {
   constructor(private readonly name: string) {}
 
   private readonly chatModel = new OpenAIChatModel();
-  private readonly network = new Network(db, new TeiClient());
+  private readonly network = new Network(db, this.chatModel);
   private readonly chatMemory = new ChatMemory();
   private readonly insideMemory = new InsideMemory();
 

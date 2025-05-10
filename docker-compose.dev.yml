@@ -13,20 +13,5 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./scripts/setup.sql:/docker-entrypoint-initdb.d/setup.sql
 
-  vectorizer:
-    image: ghcr.io/huggingface/text-embeddings-inference:1.6
-    ports:
-      - "7001:80"
-    command: ["--model-id", "BAAI/bge-m3"]
-    volumes:
-      - hf_models:/data
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-
 volumes:
   db_data:
-  hf_models:

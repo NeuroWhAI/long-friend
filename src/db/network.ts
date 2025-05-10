@@ -1,11 +1,11 @@
-import type { TeiClient } from '@/ai/tei';
+import type { ChatModel } from '@/ai/chat-models';
 import { type Kysely, sql } from 'kysely';
 import type { Database, NodeEntity, NodeTable } from './types';
 
 export class Network {
   constructor(
     private readonly db: Kysely<Database>,
-    private readonly tei: TeiClient,
+    private readonly chatModel: ChatModel,
   ) {}
 
   private nodes: Map<number, NetworkNode> = new Map();
@@ -13,7 +13,7 @@ export class Network {
   async activateNode(memory: string): Promise<void> {
     const now = new Date();
 
-    const embedding = await this.tei.embed(memory);
+    const embedding = await this.chatModel.embed(memory);
     const embeddingJson = JSON.stringify(embedding);
 
     const embeddingKey: keyof NodeTable = 'embedding';

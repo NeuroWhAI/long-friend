@@ -6,6 +6,7 @@ export const env = z
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
     CHAT_MODEL: z.string(),
+    EMBEDDING_MODEL: z.string(),
     OPENAI_API_KEY: z.string(),
 
     POSTGRES_HOST: z.string(),
@@ -13,8 +14,6 @@ export const env = z
     POSTGRES_USER: z.string(),
     POSTGRES_PASSWORD: z.string(),
     POSTGRES_DB: z.string(),
-
-    TEI_EMBED_API_URL: z.string().url(),
 
     DISCORD_CLIENT_ID: z.string(),
     DISCORD_TOKEN: z.string(),

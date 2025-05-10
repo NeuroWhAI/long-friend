@@ -6,6 +6,7 @@ import { mergeMessages } from './utils';
 export abstract class ChatModel {
   abstract chat(messages: ChatMessage[]): Promise<ChatMessage>;
   abstract stream(messages: ChatMessage[]): AsyncGenerator<string, void, unknown>;
+  abstract embed(text: string): Promise<number[]>;
 }
 
 export class OpenAIChatModel extends ChatModel {
@@ -40,5 +41,13 @@ export class OpenAIChatModel extends ChatModel {
         yield chunk.choices[0].delta.content;
       }
     }
+  }
+
+  async embed(text: string): Promise<number[]> {
+    const response = await this.openai.embeddings.create({
+      model: env.EMBEDDING_MODEL,
+      input: text,
+    });
+    return response.data[0].embedding;
   }
 }
