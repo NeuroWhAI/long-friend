@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE nodes (
   "id" serial PRIMARY KEY,
   "memory" text NOT NULL,
-  "embedding" vector(1024) NOT NULL,
+  "embedding" vector(3072) NOT NULL,
   "createdAt" timestamp NOT NULL DEFAULT now(),
   "lastActiveAt" timestamp NOT NULL DEFAULT now()
 );
