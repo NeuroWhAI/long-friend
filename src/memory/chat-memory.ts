@@ -5,14 +5,6 @@ export class ChatMemory extends Memory {
   private readonly minSummaryCount = 8;
   private readonly preserveCount = 4;
 
-  removeThoughts() {
-    for (const step of this.steps) {
-      if (step instanceof ChatInputStep) {
-        step.setInnerThought('');
-      }
-    }
-  }
-
   needSummary(): boolean {
     return this.steps.length >= 1 + this.minSummaryCount + this.preserveCount;
   }
@@ -57,7 +49,8 @@ export class ChatMemory extends Memory {
 
 export class ChatSystemPromptStep extends SystemPromptStep {
   constructor(name: string, lang: string, memory: string) {
-    super(`You are a conversation partner participating in a chat room. And your name is "${name}".
+    super(`You are a conversation partner participating in a chat room.
+I will relay the conversation to you in real-time, and you should respond appropriately as a participant named "${name}".
 Your goal is to engage in conversations and role-play a character based on the given memory and thought naturally and socially, like a human would.
 
 ## Basic Rules
@@ -80,8 +73,15 @@ Switch languages if requested or if others consistently use another language.
 \`\`\`
 Latest chat history:
 <chat_history>
-(Latest conversation content. Reference this to respond appropriately to the context.)
+Speaker1: Message1
+...
 </chat_history>
+
+Your activated memories:
+<memory>
+- Memory1
+- ...
+</memory>
 
 Your inner thoughts:
 <thought>
@@ -102,6 +102,7 @@ Your response as ${name}:
 3. **Personalization**: Remember previously mentioned information and reference it appropriately.
 4. **Varied Responses**: Show diverse reactions like agreement, questions, opinions, jokes, emotional expressions, etc.
 5. **Active Participation**: Don't just answer questions; actively participate in continuing the conversation.
+6. **Chat Perspective**: Always interpret chat history from the speaker's perspective. When the speaker says I/me, they are referring to themselves, not you.
 
 ## Prohibitions
 
@@ -123,10 +124,15 @@ ${memory}
 export class ChatInputStep extends MemoryStep {
   constructor(
     private readonly chatHistory: string,
+    private memory: string,
     private innerThought: string,
     private readonly name: string,
   ) {
     super();
+  }
+
+  setMemory(memory: string) {
+    this.memory = memory;
   }
 
   setInnerThought(thought: string) {
@@ -142,6 +148,11 @@ export class ChatInputStep extends MemoryStep {
 <chat_history>
 ${this.chatHistory}
 </chat_history>
+
+Your activated memories:
+<memory>
+${this.memory}
+</memory>
 
 Your inner thoughts:
 <thought>

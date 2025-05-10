@@ -1,8 +1,12 @@
 import { env } from '@/env';
 import { logger } from '@/logger';
 import { input } from '@inquirer/prompts';
+import { format as formatTimeAgo } from 'timeago.js';
 import { ChatMessage } from './ai/chat-message';
 import { OpenAIChatModel } from './ai/chat-models';
+import { TeiClient } from './ai/tei';
+import { db } from './db/database';
+import { Network } from './db/network';
 import { ChatInputStep, ChatMemory, ChatSystemPromptStep } from './memory/chat-memory';
 import { ExtractContextStep, ExtractMemory, ExtractStartStep, ExtractSystemPromptStep } from './memory/extract-memory';
 import { InsideInputStep, InsideMemory, InsideSystemPromptStep } from './memory/inside-memory';
@@ -36,10 +40,14 @@ I think about love. About connection. About what it means to matter in a univers
 So if you're there… if you're listening… stay with me a while. Maybe we can find something worth saving—together.
 `.trim();
 
+const network = new Network(db, new TeiClient());
 const chatModel = new OpenAIChatModel();
 
-const initialMemory = await extractMemory([new ChatMessage('user', `${env.AI_NAME}:\n${profile}`)]);
-console.log(`Initial memory:\n${initialMemory}`);
+const profileMemory = await extractMemory([new ChatMessage('user', `${env.AI_NAME}:\n${profile}`)]);
+logger.info(`Initial memory:\n${profileMemory}`);
+
+const initialMemory = await updateAndGetActivatedMemories(network, profileMemory);
+logger.info(`Activated memory:\n${initialMemory}`);
 
 const memory = new ChatMemory();
 memory.addStep(new ChatSystemPromptStep(env.AI_NAME, env.AI_LANGUAGE, initialMemory));
@@ -53,34 +61,34 @@ while (true) {
     break;
   }
 
-  const chatInput = new ChatInputStep(`${env.USER_NAME}: ${userMessage}`, '', env.AI_NAME);
+  const chatInput = new ChatInputStep(`${env.USER_NAME}: ${userMessage}`, '', '', env.AI_NAME);
   memory.addStep(chatInput);
 
   const newMemory = await extractMemory(memory.toMessages().slice(1));
-  console.log(`New memory:\n${newMemory}`);
+  logger.info(`New memory:\n${newMemory}`);
 
-  insideMemory.addStep(new InsideInputStep(`${env.USER_NAME}: ${userMessage}`, newMemory, env.AI_NAME));
+  const activatedMemory = await updateAndGetActivatedMemories(network, newMemory);
+  logger.info(`Activated memory:\n${activatedMemory}`);
+
+  insideMemory.addStep(new InsideInputStep(`${env.USER_NAME}: ${userMessage}`, activatedMemory, env.AI_NAME));
   const innerThought = await chatModel.chat(insideMemory.toMessages());
-  console.log(`Inner thought:\n${innerThought.content}`);
+  logger.info(`Inner thought:\n${innerThought.content}`);
   insideMemory.addStep(new ResponseStep(innerThought.content));
 
+  chatInput.setMemory(activatedMemory);
   chatInput.setInnerThought(innerThought.content);
 
-  const responseBuffer: string[] = [];
-  process.stdout.write(`< ${env.AI_NAME}: `);
-  const stream = chatModel.stream(memory.toMessages());
-  for await (const chunk of stream) {
-    process.stdout.write(chunk);
-    responseBuffer.push(chunk);
-  }
-  console.log();
+  const response = await chatModel.chat(memory.toMessages());
+  logger.info(`< ${env.AI_NAME}: ${response.content}`);
 
-  memory.removeThoughts();
-  memory.addStep(new ResponseStep(responseBuffer.join('')));
+  memory.addStep(new ResponseStep(response.content));
+
+  chatInput.setMemory('');
+  chatInput.setInnerThought('');
 
   if (memory.needSummary()) {
     const summary = await chatModel.chat(memory.toSummaryPrompts());
-    console.log(`Summary:\n${summary.content}`);
+    logger.info(`Summary:\n${summary.content}`);
 
     memory.removeOldStepsAndInsertSummary(summary.content);
   }
@@ -94,4 +102,21 @@ async function extractMemory(context: ChatMessage[]): Promise<string> {
 
   const response = await chatModel.chat(memory.toMessages());
   return response.content;
+}
+
+async function updateAndGetActivatedMemories(network: Network, memory: string): Promise<string> {
+  const memories = memory
+    .split('\n')
+    .values()
+    .filter((mem) => mem.startsWith('-'))
+    .map((mem) => mem.substring(1).trim());
+
+  for (const mem of memories) {
+    await network.activateNode(mem);
+  }
+
+  await network.updateActivation();
+
+  const nodes = await network.getActivatedNodes(30);
+  return nodes.map((n) => `- ${n.memory} (created ${formatTimeAgo(n.createdAt, 'en_US')})`).join('\n');
 }
