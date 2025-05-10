@@ -29,7 +29,8 @@ Generate a short inner thought that captures how you, ${name}, feel and interpre
 \`\`\`
 Latest chat history:
 <chat_history>
-Speaker1: Message1
+Speaker1 — Creation time
+Message1
 ...
 </chat_history>
 

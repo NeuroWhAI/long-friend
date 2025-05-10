@@ -2,7 +2,7 @@ import { ChatMessage } from '@/ai/chat-message';
 import { Memory, MemoryStep, SystemPromptStep } from './memory';
 
 export class ChatMemory extends Memory {
-  private readonly minSummaryCount = 8;
+  private readonly minSummaryCount = 6;
   private readonly preserveCount = 4;
 
   needSummary(): boolean {
@@ -73,7 +73,8 @@ Switch languages if requested or if others consistently use another language.
 \`\`\`
 Latest chat history:
 <chat_history>
-Speaker1: Message1
+Speaker1 — Creation time
+Message1
 ...
 </chat_history>
 

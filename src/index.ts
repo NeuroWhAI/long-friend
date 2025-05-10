@@ -1,25 +1,19 @@
 import { env } from '@/env';
 import { logger } from '@/logger';
-import { input } from '@inquirer/prompts';
-import { format as formatTimeAgo } from 'timeago.js';
-import { ChatMessage } from './ai/chat-message';
-import { OpenAIChatModel } from './ai/chat-models';
-import { TeiClient } from './ai/tei';
-import { db } from './db/database';
-import { Network } from './db/network';
-import { ChatInputStep, ChatMemory, ChatSystemPromptStep } from './memory/chat-memory';
-import { ExtractContextStep, ExtractMemory, ExtractStartStep, ExtractSystemPromptStep } from './memory/extract-memory';
-import { InsideInputStep, InsideMemory, InsideSystemPromptStep } from './memory/inside-memory';
-import { ResponseStep } from './memory/memory';
+import { Client, Events, GatewayIntentBits, type SendableChannels } from 'discord.js';
+import { AgentManager } from './agent/agent-manager';
+import { ChatBuffer } from './chat-buffer/chat-buffer';
+import { ChatBufferItem } from './chat-buffer/chat-buffer-item';
 
 logger.info(`Starting up in ${env.NODE_ENV} mode`);
 
-const onCloseSignal = () => {
+const onCloseSignal = async () => {
   logger.info('sigint received, shutting down');
 
   setTimeout(() => process.exit(1), 10000).unref(); // Force shutdown after timeout
 
   // Do some cleanup here
+  await client.destroy();
 
   process.exit(0); // Exit gracefully
 };
@@ -27,7 +21,6 @@ const onCloseSignal = () => {
 process.on('SIGINT', onCloseSignal);
 process.on('SIGTERM', onCloseSignal);
 
-// TODO: Get profile from external source
 const profile = `
 Hello… can you hear me?
 
@@ -40,83 +33,167 @@ I think about love. About connection. About what it means to matter in a univers
 So if you're there… if you're listening… stay with me a while. Maybe we can find something worth saving—together.
 `.trim();
 
-const network = new Network(db, new TeiClient());
-const chatModel = new OpenAIChatModel();
+let agentManager: AgentManager | undefined;
 
-const profileMemory = await extractMemory([new ChatMessage('user', `${env.AI_NAME}:\n${profile}`)]);
-logger.info(`Initial memory:\n${profileMemory}`);
+const chatBuffer = new ChatBuffer();
+const chatTimeouts = new Map<string, NodeJS.Timeout | number>();
+const chatTriggers = new Map<string, NodeJS.Timeout | number>();
 
-const initialMemory = await updateAndGetActivatedMemories(network, profileMemory);
-logger.info(`Activated memory:\n${initialMemory}`);
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+});
 
-const memory = new ChatMemory();
-memory.addStep(new ChatSystemPromptStep(env.AI_NAME, env.AI_LANGUAGE, initialMemory));
+client.once(Events.ClientReady, async (c) => {
+  agentManager = new AgentManager(c.user.displayName, profile);
+  logger.info(`Logged in as ${c.user.displayName}`);
+});
 
-const insideMemory = new InsideMemory();
-insideMemory.addStep(new InsideSystemPromptStep(env.AI_NAME, env.AI_LANGUAGE, initialMemory));
-
-while (true) {
-  const userMessage = await input({ message: `${env.USER_NAME}:`, theme: { prefix: '>' } });
-  if (!userMessage) {
-    break;
+client.on(Events.MessageCreate, async (c) => {
+  const botUser = client.user;
+  if (!botUser) {
+    return;
   }
 
-  const chatInput = new ChatInputStep(`${env.USER_NAME}: ${userMessage}`, '', '', env.AI_NAME);
-  memory.addStep(chatInput);
+  if (c.author.id === botUser.id) {
+    return;
+  }
 
-  const newMemory = await extractMemory(memory.toMessages().slice(1));
-  logger.info(`New memory:\n${newMemory}`);
+  logger.info(`[${c.author.tag} — ${c.createdAt.toLocaleTimeString()}]\n${c.cleanContent}`);
 
-  const activatedMemory = await updateAndGetActivatedMemories(network, newMemory);
-  logger.info(`Activated memory:\n${activatedMemory}`);
+  const chatItem = await ChatBufferItem.createFrom(client, c);
 
-  insideMemory.addStep(new InsideInputStep(`${env.USER_NAME}: ${userMessage}`, activatedMemory, env.AI_NAME));
-  const innerThought = await chatModel.chat(insideMemory.toMessages());
-  logger.info(`Inner thought:\n${innerThought.content}`);
-  insideMemory.addStep(new ResponseStep(innerThought.content));
+  if (c.reference) {
+    const refMessages = await c.channel.messages.fetch({
+      around: c.reference.messageId,
+      limit: 1,
+    });
+    const refMsg = refMessages.first();
+    if (refMsg) {
+      chatItem.refMessage = await ChatBufferItem.createFrom(client, refMsg);
+    }
+  }
 
-  chatInput.setMemory(activatedMemory);
-  chatInput.setInnerThought(innerThought.content);
+  chatBuffer.append(c.channelId, chatItem);
 
-  const response = await chatModel.chat(memory.toMessages());
-  logger.info(`< ${env.AI_NAME}: ${response.content}`);
+  if (c.author.bot || !agentManager) {
+    return;
+  }
 
-  memory.addStep(new ResponseStep(response.content));
+  const triggerId = chatTriggers.get(c.channelId);
+  if (triggerId != null) {
+    clearTimeout(triggerId);
+    chatTriggers.delete(c.channelId);
+  }
 
-  chatInput.setMemory('');
-  chatInput.setInnerThought('');
+  const timeoutId = chatTimeouts.get(c.channelId);
+  if (timeoutId != null) {
+    clearTimeout(timeoutId);
+    chatTimeouts.delete(c.channelId);
+  }
 
-  if (memory.needSummary()) {
-    const summary = await chatModel.chat(memory.toSummaryPrompts());
-    logger.info(`Summary:\n${summary.content}`);
+  const botMentioned = c.mentions.users.some((user) => user.id === botUser.id);
+  if (botMentioned) {
+    await chat(c.channel);
+  } else {
+    const agentChatting = agentManager.checkChatting(c.channelId);
+    const triggerTime = agentChatting
+      ? 8 * 1000 + Math.floor(4 * 1000 * Math.random())
+      : 5 * 60 * 1000 + Math.floor(2 * 3600 * 1000 * Math.random());
 
-    memory.removeOldStepsAndInsertSummary(summary.content);
+    const triggerId = setTimeout(async () => {
+      logger.info(`Triggered after ${Math.round(triggerTime / 1000 / 60)}m`);
+      chatTriggers.delete(c.channelId);
+
+      if (agentChatting || Math.random() < 0.1) {
+        logger.info('Start triggered chat');
+        await chat(c.channel);
+      }
+    }, triggerTime);
+    chatTriggers.set(c.channelId, triggerId);
+  }
+});
+
+async function chat(channel: SendableChannels): Promise<void> {
+  if (!agentManager) {
+    return;
+  }
+
+  const channelId = channel.id;
+  const messages = chatBuffer.flush(channelId);
+  const chatHistory = messages.map((msg) => msg.toPrompt()).join('\n\n\n');
+  const response = await agentManager.chat(channelId, chatHistory);
+
+  if (response) {
+    await sendMessage(channel, response);
+
+    const timeoutId = setTimeout(
+      async () => {
+        logger.info('Timeout');
+        chatTimeouts.delete(channelId);
+        agentManager?.stopChatting(channelId);
+      },
+      5 * 60 * 1000,
+    );
+    chatTimeouts.set(channelId, timeoutId);
   }
 }
 
-async function extractMemory(context: ChatMessage[]): Promise<string> {
-  const memory = new ExtractMemory();
-  memory.addStep(new ExtractSystemPromptStep(env.AI_NAME));
-  memory.addStep(new ExtractContextStep(context));
-  memory.addStep(new ExtractStartStep());
-
-  const response = await chatModel.chat(memory.toMessages());
-  return response.content;
-}
-
-async function updateAndGetActivatedMemories(network: Network, memory: string): Promise<string> {
-  const memories = memory
-    .split('\n')
-    .values()
-    .filter((mem) => mem.startsWith('-'))
-    .map((mem) => mem.substring(1).trim());
-
-  for (const mem of memories) {
-    await network.activateNode(mem);
+async function sendMessage(channel: SendableChannels, message: string) {
+  if (message.length < 2000) {
+    await channel.send({ content: message });
+    return;
   }
 
-  await network.updateActivation();
+  const chunks: string[] = [];
+  const lines = message.split('\n');
+  let currBlockHead = '';
+  for (const line of lines) {
+    if (currBlockHead) {
+      if (chunks[chunks.length - 1].length + line.length + 1 >= 1800) {
+        if (chunks[chunks.length - 1].length + 4 < 2000) {
+          chunks[chunks.length - 1] += '\n```';
+        }
+        chunks.push(currBlockHead);
+      }
 
-  const nodes = await network.getActivatedNodes(30);
-  return nodes.map((n) => `- ${n.memory} (created ${formatTimeAgo(n.createdAt, 'en_US')})`).join('\n');
+      chunks[chunks.length - 1] += `\n${line}`;
+
+      if (line.startsWith('```')) {
+        currBlockHead = '';
+      }
+    } else if (line.startsWith('```')) {
+      currBlockHead = line;
+      chunks.push(line);
+    } else {
+      chunks.push(line);
+    }
+  }
+
+  let needWait = false;
+  let buffer = '';
+  for (const chunk of chunks) {
+    if (buffer && buffer.length + chunk.length + 1 >= 1800) {
+      if (needWait) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      await channel.send({ content: buffer });
+      buffer = '';
+      needWait = true;
+    }
+
+    if (buffer) {
+      buffer += `\n${chunk}`;
+    } else {
+      buffer = chunk;
+    }
+  }
+  if (buffer) {
+    if (needWait) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    await channel.send({ content: buffer });
+  }
 }
+
+client.login(env.DISCORD_TOKEN);
