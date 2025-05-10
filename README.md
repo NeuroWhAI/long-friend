@@ -1,3 +1,4 @@
 # Long Friend
 
-An AI friend with a long memory.
+A Discord bot for gradual long-term memory retrieval testing using activation spreading in associative memory networks.  
+(Yeah, I have no idea what I’m saying either.)
