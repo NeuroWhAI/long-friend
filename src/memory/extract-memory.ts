@@ -21,7 +21,7 @@ Extract facts about **You** ("${name}"), **Other Participants** in the conversat
 
 ## Extraction Rules:
 
-- Extract core facts in clear, standalone sentences in English.
+- Extract core facts in clear, standalone sentences in English. But leave proper nouns untranslated.
 - Each sentence should convey one distinct piece of information.
 - Each sentence should be self-contained and understandable without relying on others.
 - Present the extracted sentences as a list.
