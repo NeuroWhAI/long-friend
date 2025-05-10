@@ -5,8 +5,6 @@ export const env = z
   .object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
-    AI_LANGUAGE: z.string(),
-
     CHAT_MODEL: z.string(),
     OPENAI_API_KEY: z.string(),
 

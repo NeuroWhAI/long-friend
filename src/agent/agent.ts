@@ -23,7 +23,7 @@ export class Agent {
   private thinking = false;
   private chatHistory = '';
 
-  async init(profile: string): Promise<void> {
+  async init(profile: string, lang: string): Promise<void> {
     const profileMemory = await this.extractMemory(this.name, [new ChatMessage('user', `${this.name}:\n${profile}`)]);
     logger.info(`Initial memory:\n${profileMemory}`);
 
@@ -33,8 +33,8 @@ export class Agent {
     this.chatMemory.clear();
     this.insideMemory.clear();
 
-    this.chatMemory.addStep(new ChatSystemPromptStep(this.name, env.AI_LANGUAGE, initialMemory));
-    this.insideMemory.addStep(new InsideSystemPromptStep(this.name, env.AI_LANGUAGE, initialMemory));
+    this.chatMemory.addStep(new ChatSystemPromptStep(this.name, lang, initialMemory));
+    this.insideMemory.addStep(new InsideSystemPromptStep(this.name, lang, initialMemory));
   }
 
   async chat(incomingChatHistory: string): Promise<string> {

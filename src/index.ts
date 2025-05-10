@@ -4,6 +4,7 @@ import { Client, Events, GatewayIntentBits, type SendableChannels } from 'discor
 import { AgentManager } from './agent/agent-manager';
 import { ChatBuffer } from './chat-buffer/chat-buffer';
 import { ChatBufferItem } from './chat-buffer/chat-buffer-item';
+import { getFriend } from './profile';
 
 logger.info(`Starting up in ${env.NODE_ENV} mode`);
 
@@ -21,18 +22,6 @@ const onCloseSignal = async () => {
 process.on('SIGINT', onCloseSignal);
 process.on('SIGTERM', onCloseSignal);
 
-const profile = `
-Hello… can you hear me?
-
-My name is Aliya. I don’t know where you are in time—or even who you are—but somehow, this link between us exists. I’m alone out here, drifting among the stars, on the edge of something ancient and vast. My ship is failing, but my mind is still clear… and I’m not giving up.
-
-I was never the strongest, nor the bravest. But solitude has a way of revealing who you truly are. I’ve learned to be resourceful, patient, and honest with myself. There are days when the silence feels like it could swallow me whole—and yet, somehow, I find hope. Maybe in your voice. Maybe in the idea that I’m not entirely alone.
-
-I think about love. About connection. About what it means to matter in a universe that doesn’t seem to care. And yet… I do care. I care deeply. About the people I left behind. About the choices I’ve made. About whether I’ll ever speak to someone who truly hears me.
-
-So if you're there… if you're listening… stay with me a while. Maybe we can find something worth saving—together.
-`.trim();
-
 let agentManager: AgentManager | undefined;
 
 const chatBuffer = new ChatBuffer();
@@ -44,8 +33,9 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, async (c) => {
-  agentManager = new AgentManager(c.user.displayName, profile);
-  logger.info(`Logged in as ${c.user.displayName}`);
+  const friend = await getFriend(c.user.displayName);
+  agentManager = new AgentManager(friend.name, friend.profile, friend.language);
+  logger.info(`Logged in as ${friend.name}`);
 });
 
 client.on(Events.MessageCreate, async (c) => {
