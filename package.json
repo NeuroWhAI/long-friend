@@ -8,7 +8,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "tsx watch --clear-screen=false src/index.ts | pino-pretty",
+    "dev": "tsx src/index.ts",
     "build": "tsup --format esm",
     "start": "node dist/index.js",
     "clean": "rimraf dist coverage",
@@ -21,16 +21,20 @@
   "dependencies": {
     "@inquirer/prompts": "^7.5.0",
     "dotenv": "^16.4.5",
+    "kysely": "^0.28.2",
     "openai": "^4.97.0",
+    "pg": "^8.15.6",
     "pino": "^9.4.0",
+    "pino-pretty": "^13.0.0",
+    "timeago.js": "^4.0.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/cors": "^2.8.17",
+    "@types/pg": "^8.15.1",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.2",
-    "pino-pretty": "^13.0.0",
     "rimraf": "^6.0.0",
     "tsup": "^8.0.2",
     "tsx": "^4.7.2",
@@ -39,16 +43,10 @@
     "vitest": "^3.0.0"
   },
   "lint-staged": {
-    "*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}": [
-      "biome check --fix --no-errors-on-unmatched"
-    ]
+    "*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}": ["biome check --fix --no-errors-on-unmatched"]
   },
   "tsup": {
-    "entry": [
-      "src",
-      "!src/**/__tests__/**",
-      "!src/**/*.test.*"
-    ],
+    "entry": ["src", "!src/**/__tests__/**", "!src/**/*.test.*"],
     "splitting": false,
     "sourcemap": true,
     "clean": true

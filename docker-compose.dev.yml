@@ -1,0 +1,32 @@
+# 개발 중 디버깅을 위해서 앱은 제외하고 나머지 서비스만 실행.
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./scripts/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+
+  vectorizer:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.6
+    ports:
+      - "7001:80"
+    command: ["--model-id", "BAAI/bge-m3"]
+    volumes:
+      - hf_models:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+
+volumes:
+  db_data:
+  hf_models:
