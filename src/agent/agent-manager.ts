@@ -13,6 +13,7 @@ export class AgentManager {
     let agent = this.agents.get(channelId);
     if (!agent) {
       agent = new Agent(this.agentName);
+      this.agents.set(channelId, agent);
       await agent.init(this.agentProfile, this.agentLang);
     }
     return await agent.chat(chatHistory);
