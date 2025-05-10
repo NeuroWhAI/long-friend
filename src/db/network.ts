@@ -9,6 +9,7 @@ export class Network {
   ) {}
 
   private nodes: Map<number, NetworkNode> = new Map();
+  private activatedNodes: Map<number, NetworkNode> = new Map();
 
   async activateNode(memory: string): Promise<void> {
     const now = new Date();
@@ -43,7 +44,9 @@ export class Network {
         .returningAll()
         .executeTakeFirstOrThrow();
 
-      this.nodes.set(nodeEntity.id, new NetworkNode(nodeEntity, 1));
+      const node = new NetworkNode(nodeEntity, 1);
+      this.nodes.set(nodeEntity.id, node);
+      this.activatedNodes.set(nodeEntity.id, node);
     }
 
     if (similarNodes.length > 0) {
@@ -60,7 +63,9 @@ export class Network {
 
     for (const nodeEntity of similarNodes) {
       const activation = (1 - nodeEntity.distance) * 0.2 + 0.8;
-      this.nodes.set(nodeEntity.id, new NetworkNode({ ...nodeEntity, lastActiveAt: now }, activation));
+      const node = new NetworkNode({ ...nodeEntity, lastActiveAt: now }, activation);
+      this.nodes.set(nodeEntity.id, node);
+      this.activatedNodes.set(nodeEntity.id, node);
     }
   }
 
@@ -88,7 +93,7 @@ export class Network {
   }
 
   private async updateActivatedEdges(now: Date): Promise<void> {
-    const nodes = this.nodes.values().toArray();
+    const nodes = this.activatedNodes.values().toArray();
     for (let i = 0; i < nodes.length; i++) {
       const node1 = nodes[i];
       if (node1.activation < 0.1) {
@@ -145,6 +150,8 @@ export class Network {
         }
       }
     }
+
+    this.activatedNodes.clear();
   }
 
   private async spreadNodeActivation(nodeId: number, activation: number, now: Date, depth: number): Promise<void> {
@@ -186,6 +193,7 @@ export class Network {
           .executeTakeFirstOrThrow();
         targetNode = new NetworkNode(nodeEntity, nextActivation);
         this.nodes.set(target, targetNode);
+        this.activatedNodes.set(target, targetNode);
       }
 
       if (depth < 2 && targetNode.activation > 0.1) {
