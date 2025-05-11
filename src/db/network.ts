@@ -74,16 +74,20 @@ export class Network {
 
     await this.updateActivatedEdges(now);
 
-    for (const node of this.nodes.values()) {
+    const activatedNodes = this.activatedNodes.values().map((n) => ({ id: n.id, activation: n.activation }));
+    this.activatedNodes.clear();
+
+    const maxDepth = 3;
+    for (const node of activatedNodes) {
       if (node.activation > 0.1) {
-        await this.spreadNodeActivation(node.id, node.activation, now, 1);
+        await this.spreadNodeActivation([node.id], node.activation, now, maxDepth - 1);
       }
     }
 
     const deactivatedNodes: number[] = [];
     for (const node of this.nodes.values()) {
       node.activation *= 0.5;
-      if (node.activation < 0.01) {
+      if (node.activation < 0.1) {
         deactivatedNodes.push(node.id);
       }
     }
@@ -93,16 +97,16 @@ export class Network {
   }
 
   private async updateActivatedEdges(now: Date): Promise<void> {
-    const nodes = this.activatedNodes.values().toArray();
+    const nodes = this.nodes.values().toArray();
     for (let i = 0; i < nodes.length; i++) {
       const node1 = nodes[i];
-      if (node1.activation < 0.1) {
+      if (node1.activation < 0.4) {
         continue;
       }
 
       for (let j = i + 1; j < nodes.length; j++) {
         const node2 = nodes[j];
-        if (node2.activation < 0.1) {
+        if (node2.activation < 0.4) {
           continue;
         }
 
@@ -150,11 +154,16 @@ export class Network {
         }
       }
     }
-
-    this.activatedNodes.clear();
   }
 
-  private async spreadNodeActivation(nodeId: number, activation: number, now: Date, depth: number): Promise<void> {
+  private async spreadNodeActivation(
+    nodePath: number[],
+    activation: number,
+    now: Date,
+    leftDepth: number,
+  ): Promise<void> {
+    const nodeId = nodePath[nodePath.length - 1];
+
     const [edges1, edges2] = await Promise.all([
       this.db.selectFrom('edges').selectAll().where('node1Id', '=', nodeId).execute(),
       this.db.selectFrom('edges').selectAll().where('node2Id', '=', nodeId).execute(),
@@ -176,6 +185,10 @@ export class Network {
       .execute();
 
     for (const { edge, target } of edges) {
+      if (nodePath.includes(target)) {
+        continue;
+      }
+
       const similarityScore = edge.similarity * 0.1 + 0.9;
       const activeCountScore = (edge.activeCount / maxActiveCount) * 0.5 + 0.5;
       const nextActivation = activation * similarityScore * activeCountScore;
@@ -193,11 +206,10 @@ export class Network {
           .executeTakeFirstOrThrow();
         targetNode = new NetworkNode(nodeEntity, nextActivation);
         this.nodes.set(target, targetNode);
-        this.activatedNodes.set(target, targetNode);
       }
 
-      if (depth < 2 && targetNode.activation > 0.1) {
-        await this.spreadNodeActivation(target, nextActivation, now, depth + 1);
+      if (leftDepth > 0 && targetNode.activation > 0.1) {
+        await this.spreadNodeActivation([...nodePath, target], nextActivation, now, leftDepth - 1);
       }
     }
   }
