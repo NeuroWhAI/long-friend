@@ -152,6 +152,7 @@ ${this.chatHistory}
 
 Your activated memories:
 <memory>
+- It's now ${new Date().toString()}
 ${this.memory}
 </memory>
 
