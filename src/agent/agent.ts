@@ -20,6 +20,7 @@ export class Agent {
   public chatting = false;
   private thinking = false;
   private chatHistory = '';
+  private prevResponse = '';
 
   async init(profile: string, lang: string): Promise<void> {
     const profileMemory = await this.extractMemory(this.name, [new ChatMessage('user', `${this.name}:\n${profile}`)]);
@@ -60,7 +61,13 @@ export class Agent {
       const activatedMemory = await this.updateAndGetActivatedMemories(this.network, newMemory);
       logger.info(`Activated memory:\n${activatedMemory}`);
 
-      this.insideMemory.addStep(new InsideInputStep(chatHistory, activatedMemory, this.name));
+      this.insideMemory.addStep(
+        new InsideInputStep(
+          this.prevResponse ? `${this.name} — just before\n${this.prevResponse}\n\n\n${chatHistory}` : chatHistory,
+          activatedMemory,
+          this.name,
+        ),
+      );
       const innerThought = await this.chatModel.chat(this.insideMemory.toMessages());
       logger.info(`Inner thought:\n${innerThought.content}`);
       this.insideMemory.addStep(new ResponseStep(innerThought.content));
@@ -72,6 +79,7 @@ export class Agent {
       logger.info(`Response:\n${response.content}`);
 
       this.chatMemory.addStep(new ResponseStep(response.content));
+      this.prevResponse = response.content;
 
       chatInput.setMemory('');
       chatInput.setInnerThought('');
