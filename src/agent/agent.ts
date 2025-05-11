@@ -72,6 +72,13 @@ export class Agent {
       logger.info(`Inner thought:\n${innerThought.content}`);
       this.insideMemory.addStep(new ResponseStep(innerThought.content));
 
+      if (this.insideMemory.needSummary()) {
+        const summary = await this.chatModel.chat(this.insideMemory.toSummaryPrompts(this.name));
+        logger.info(`Inside summary:\n${summary.content}`);
+
+        this.insideMemory.removeOldStepsAndInsertSummary(summary.content);
+      }
+
       chatInput.setMemory(activatedMemory);
       chatInput.setInnerThought(innerThought.content);
 
@@ -85,8 +92,8 @@ export class Agent {
       chatInput.setInnerThought('');
 
       if (this.chatMemory.needSummary()) {
-        const summary = await this.chatModel.chat(this.chatMemory.toSummaryPrompts());
-        logger.info(`Summary:\n${summary.content}`);
+        const summary = await this.chatModel.chat(this.chatMemory.toSummaryPrompts(this.name));
+        logger.info(`Chat summary:\n${summary.content}`);
 
         this.chatMemory.removeOldStepsAndInsertSummary(summary.content);
       }

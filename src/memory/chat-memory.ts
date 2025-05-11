@@ -9,8 +9,9 @@ export class ChatMemory extends Memory {
     return this.steps.length >= 1 + this.minSummaryCount + this.preserveCount;
   }
 
-  toSummaryPrompts(): ChatMessage[] {
-    const summaryPrompt = `Summarize the conversation context using these guidelines:
+  toSummaryPrompts(name: string): ChatMessage[] {
+    const summaryPrompt = `You are "${name}"
+Summarize the conversation context using these guidelines:
 
 1. Focus only on essential information:
    - Key facts and details discussed
