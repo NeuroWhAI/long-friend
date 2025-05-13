@@ -24,7 +24,9 @@ export class Agent {
   private prevResponse = '';
 
   async init(profile: string, lang: string): Promise<void> {
-    const profileMemory = await this.extractMemory(this.name, [new ChatMessage('user', `${this.name}:\n${profile}`)]);
+    const profileMemory = await this.extractMemory(this.name, [
+      new ChatMessage('user', `${this.name} — past\n${profile}`),
+    ]);
     logger.info(`Initial memory:\n${profileMemory}`);
 
     const initialMemory = await this.updateAndGetActivatedMemories(this.network, profileMemory);

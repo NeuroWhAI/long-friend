@@ -35,13 +35,35 @@ Extract facts about **You** ("${name}"), **Other Participants** in the conversat
 - Prioritize information that helps build a profile of the entities and their social context.
 - Print only the extracted facts without any additional commentary or explanation.
 
+## Input Format
+
+\`\`\`
+Latest chat history:
+<chat_history>
+Speaker1 — Creation time
+Message1
+...
+</chat_history>
+
+Your response as ${name}:
+\`\`\`
+
+and your response follows.
+
 ## Example
 
-**Example Input Conversation:**
-"Hello, I'm Kevin. My dog Max was really energetic yesterday. I mentioned earlier that I like coffee, right? Oh, my friend Sarah's cat is named Whiskers. Sarah works at the local library."
+**Example Input:**
+<chat_history>
+Kevin — 00:00
+Hello, I'm Kevin. My dog Max was really energetic yesterday. I mentioned earlier that I like coffee, right? Oh, my friend Sarah's cat is named Whiskers. Sarah works at the local library.
+</chat_history>
+
+Your response as ${name}:
+Oh, I love coffee, too.
 
 **Expected Extraction Result:**
 - I am participating in the conversation.
+- ${name} loves cofee.
 - Kevin is a participant in the conversation.
 - Kevin is a person.
 - Kevin has a dog.
