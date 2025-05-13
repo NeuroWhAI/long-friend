@@ -1,4 +1,5 @@
 import { ChatMessage } from '@/ai/chat-message';
+import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
 import { Memory, MemoryStep, SystemPromptStep } from './memory';
 
 export class InsideMemory extends Memory {
@@ -106,7 +107,8 @@ ${memory}
 
 export class InsideInputStep extends MemoryStep {
   constructor(
-    private readonly chatHistory: string,
+    private readonly prevResponse: string,
+    private readonly chatHistory: ChatBufferItem[],
     private readonly memory: string,
     private readonly name: string,
   ) {
@@ -114,12 +116,13 @@ export class InsideInputStep extends MemoryStep {
   }
 
   toMessage(): ChatMessage[] {
+    const prevHistory = this.prevResponse ? `\n${this.name} — just before\n${this.prevResponse}\n\n\n` : '';
     return [
       new ChatMessage(
         'user',
         `Latest chat history:
-<chat_history>
-${this.chatHistory}
+<chat_history>${prevHistory}
+${this.chatHistory.map((c) => c.toPrompt()).join('\n\n\n')}
 </chat_history>
 
 Your active memories:
@@ -129,6 +132,11 @@ ${this.memory}
 </memory>
 
 Your inner thought as ${this.name}:`,
+        this.chatHistory
+          .values()
+          .flatMap((c) => (c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls))
+          .take(4)
+          .toArray(),
       ),
     ];
   }

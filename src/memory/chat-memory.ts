@@ -1,4 +1,5 @@
 import { ChatMessage } from '@/ai/chat-message';
+import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
 import { Memory, MemoryStep, SystemPromptStep } from './memory';
 
 export class ChatMemory extends Memory {
@@ -125,7 +126,7 @@ ${memory}
 
 export class ChatInputStep extends MemoryStep {
   constructor(
-    private readonly chatHistory: string,
+    private readonly chatHistory: ChatBufferItem[],
     private memory: string,
     private innerThought: string,
     private readonly name: string,
@@ -148,7 +149,7 @@ export class ChatInputStep extends MemoryStep {
           'user',
           `Latest chat history:
 <chat_history>
-${this.chatHistory}
+${this.chatHistory.map((c) => c.toPrompt()).join('\n\n\n')}
 </chat_history>
 
 Your activated memories:
@@ -163,6 +164,13 @@ ${this.innerThought}
 </thought>
 
 Your response as ${this.name}:`,
+          this.chatHistory
+            .values()
+            .flatMap((c) =>
+              c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls,
+            )
+            .take(4)
+            .toArray(),
         ),
       ];
     } else {
@@ -171,7 +179,7 @@ Your response as ${this.name}:`,
           'user',
           `Latest chat history:
 <chat_history>
-${this.chatHistory}
+${this.chatHistory.map((c) => c.toPrompt()).join('\n\n\n')}
 </chat_history>
 
 Your response as ${this.name}:`,

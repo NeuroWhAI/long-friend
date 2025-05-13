@@ -37,9 +37,21 @@ export class ChatBufferItem {
 
   toPrompt(): string {
     let prompt = `${this.author} — ${localeDate(this.date)}\n${this.content}`;
+    if (this.imageUrls.length > 0) {
+      prompt +=
+        this.imageUrls.length === 1 ? '\n\n*(1 image attached)*' : `\n\n*(${this.imageUrls.length} images attached)*`;
+    }
+
     if (this.refMessage) {
       const ref = this.refMessage;
-      prompt = `${ref.author} — past\n${ref.content}\n--- Referred to by the following message ---\n${prompt}`;
+
+      let refPrompt = `${ref.author} — past\n${ref.content}`;
+      if (ref.imageUrls.length > 0) {
+        refPrompt +=
+          ref.imageUrls.length === 1 ? '\n\n*(1 image attached)*' : `\n\n*(${ref.imageUrls.length} images attached)*`;
+      }
+
+      prompt = `${refPrompt}\n\n*Referred to by the following message:*\n${prompt}`;
     }
     return prompt;
   }

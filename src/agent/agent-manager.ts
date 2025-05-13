@@ -1,3 +1,4 @@
+import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
 import { Agent } from './agent';
 
 export class AgentManager {
@@ -9,7 +10,7 @@ export class AgentManager {
 
   private readonly agents: Map<string, Agent> = new Map();
 
-  async chat(channelId: string, chatHistory: string): Promise<string> {
+  async chat(channelId: string, chatHistory: ChatBufferItem[]): Promise<string> {
     let agent = this.agents.get(channelId);
     if (!agent) {
       agent = new Agent(this.agentName);

@@ -1,5 +1,11 @@
 import { env } from '@/env';
 import OpenAI from 'openai';
+import type {
+  ChatCompletionContentPart,
+  ChatCompletionContentPartImage,
+  ChatCompletionMessageParam,
+  ChatCompletionUserMessageParam,
+} from 'openai/resources/chat';
 import { ChatMessage } from './chat-message';
 import { mergeMessages } from './utils';
 
@@ -22,7 +28,7 @@ export class OpenAIChatModel extends ChatModel {
   async chat(messages: ChatMessage[]): Promise<ChatMessage> {
     const response = await this.openai.chat.completions.create({
       model: env.CHAT_MODEL,
-      messages: mergeMessages(messages),
+      messages: this.buildMessages(messages),
       stream: false,
     });
 
@@ -32,7 +38,7 @@ export class OpenAIChatModel extends ChatModel {
   async *stream(messages: ChatMessage[]): AsyncGenerator<string, void, unknown> {
     const stream = await this.openai.chat.completions.create({
       model: env.CHAT_MODEL,
-      messages: mergeMessages(messages),
+      messages: this.buildMessages(messages),
       stream: true,
     });
 
@@ -49,5 +55,24 @@ export class OpenAIChatModel extends ChatModel {
       input: text,
     });
     return response.data[0].embedding;
+  }
+
+  private buildMessages(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+    return mergeMessages(messages).map((m) =>
+      m.role === 'user'
+        ? ({
+            role: m.role,
+            content: [
+              { type: 'text', text: m.content },
+              ...m.images.map(
+                (url) => ({ type: 'image_url' as const, image_url: { url } }) satisfies ChatCompletionContentPartImage,
+              ),
+            ],
+          } satisfies ChatCompletionUserMessageParam)
+        : ({
+            role: m.role,
+            content: m.content,
+          } satisfies ChatCompletionMessageParam),
+    );
   }
 }

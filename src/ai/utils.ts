@@ -10,6 +10,7 @@ export function mergeMessages(messages: ChatMessage[]): ChatMessage[] {
       const lastMessage = mergedMessages[mergedMessages.length - 1];
       if (lastMessage.role === message.role) {
         lastMessage.content += `\n\n---\n\n${message.content}`;
+        lastMessage.images.push(...message.images);
       } else {
         mergedMessages.push(message);
       }

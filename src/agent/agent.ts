@@ -1,3 +1,4 @@
+import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
 import { format as formatTimeAgo } from 'timeago.js';
 import { ChatMessage } from '../ai/chat-message';
 import { OpenAIChatModel } from '../ai/chat-models';
@@ -19,7 +20,7 @@ export class Agent {
 
   public chatting = false;
   private thinking = false;
-  private chatHistory = '';
+  private chatHistory: ChatBufferItem[] = [];
   private prevResponse = '';
 
   async init(profile: string, lang: string): Promise<void> {
@@ -36,12 +37,8 @@ export class Agent {
     this.insideMemory.addStep(new InsideSystemPromptStep(this.name, lang, initialMemory));
   }
 
-  async chat(incomingChatHistory: string): Promise<string> {
-    if (this.chatHistory) {
-      this.chatHistory += `\n\n\n${incomingChatHistory}`;
-    } else {
-      this.chatHistory = incomingChatHistory;
-    }
+  async chat(incomingChatHistory: ChatBufferItem[]): Promise<string> {
+    const chatHistoryLen = this.chatHistory.push(...incomingChatHistory);
 
     if (this.thinking) {
       return '';
@@ -49,8 +46,7 @@ export class Agent {
     this.thinking = true;
 
     try {
-      const chatHistory = this.chatHistory;
-      this.chatHistory = '';
+      const chatHistory = this.chatHistory.splice(0, chatHistoryLen);
 
       const chatInput = new ChatInputStep(chatHistory, '', '', this.name);
       this.chatMemory.addStep(chatInput);
@@ -61,13 +57,7 @@ export class Agent {
       const activatedMemory = await this.updateAndGetActivatedMemories(this.network, newMemory);
       logger.info(`Activated memory:\n${activatedMemory}`);
 
-      this.insideMemory.addStep(
-        new InsideInputStep(
-          this.prevResponse ? `${this.name} — just before\n${this.prevResponse}\n\n\n${chatHistory}` : chatHistory,
-          activatedMemory,
-          this.name,
-        ),
-      );
+      this.insideMemory.addStep(new InsideInputStep(this.prevResponse, chatHistory, activatedMemory, this.name));
       const innerThought = await this.chatModel.chat(this.insideMemory.toMessages());
       logger.info(`Inner thought:\n${innerThought.content}`);
       this.insideMemory.addStep(new ResponseStep(innerThought.content));

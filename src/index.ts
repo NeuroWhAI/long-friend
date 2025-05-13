@@ -110,8 +110,7 @@ async function chat(channel: SendableChannels): Promise<void> {
 
   const channelId = channel.id;
   const messages = chatBuffer.flush(channelId);
-  const chatHistory = messages.map((msg) => msg.toPrompt()).join('\n\n\n');
-  const response = await agentManager.chat(channelId, chatHistory);
+  const response = await agentManager.chat(channelId, messages);
 
   if (response) {
     await sendMessage(channel, response);
