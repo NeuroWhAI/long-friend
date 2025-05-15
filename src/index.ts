@@ -28,6 +28,8 @@ const chatBuffer = new ChatBuffer();
 const chatTimeouts = new Map<string, NodeJS.Timeout | number>();
 const chatTriggers = new Map<string, NodeJS.Timeout | number>();
 
+const channelList = env.DISCORD_CHANNEL_LIST.split(',').map((c) => c.trim());
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
@@ -39,6 +41,10 @@ client.once(Events.ClientReady, async (c) => {
 });
 
 client.on(Events.MessageCreate, async (c) => {
+  if (!channelList.includes(c.channelId)) {
+    return;
+  }
+
   const botUser = client.user;
   if (!botUser) {
     return;

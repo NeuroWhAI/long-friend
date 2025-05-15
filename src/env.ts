@@ -17,5 +17,6 @@ export const env = z
 
     DISCORD_CLIENT_ID: z.string(),
     DISCORD_TOKEN: z.string(),
+    DISCORD_CHANNEL_LIST: z.string(),
   })
   .parse(process.env);
