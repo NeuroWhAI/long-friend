@@ -29,7 +29,7 @@ export class Agent {
     ]);
     logger.info(`Initial memory:\n${profileMemory}`);
 
-    const initialMemory = await this.updateAndGetActivatedMemories(this.network, profileMemory);
+    const initialMemory = await this.updateAndGetActivatedMemories(this.network, profileMemory, 50);
     logger.info(`Activated memory:\n${initialMemory}`);
 
     this.chatMemory.clear();
@@ -56,7 +56,7 @@ export class Agent {
       const newMemory = await this.extractMemory(this.name, this.chatMemory.toMessages().slice(1));
       logger.info(`New memory:\n${newMemory}`);
 
-      const activatedMemory = await this.updateAndGetActivatedMemories(this.network, newMemory);
+      const activatedMemory = await this.updateAndGetActivatedMemories(this.network, newMemory, 30);
       logger.info(`Activated memory:\n${activatedMemory}`);
 
       this.insideMemory.addStep(new InsideInputStep(this.prevResponse, chatHistory, activatedMemory, this.name));
@@ -111,7 +111,7 @@ export class Agent {
     return response.content;
   }
 
-  private async updateAndGetActivatedMemories(network: Network, memory: string): Promise<string> {
+  private async updateAndGetActivatedMemories(network: Network, memory: string, topK: number): Promise<string> {
     const memories = memory
       .split('\n')
       .values()
@@ -124,7 +124,7 @@ export class Agent {
 
     await network.updateActivation();
 
-    const nodes = await network.getActivatedNodes(30);
+    const nodes = await network.getActivatedNodes(topK);
     return nodes.map((n) => `- ${n.memory} (created ${formatTimeAgo(n.createdAt, 'en_US')})`).join('\n');
   }
 }

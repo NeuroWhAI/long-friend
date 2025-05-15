@@ -220,6 +220,7 @@ export class Network {
       .toArray()
       .toSorted((a, b) => b.activation - a.activation)
       .values()
+      .filter((n) => n.activation > 0.2)
       .take(topK)
       .toArray();
   }
