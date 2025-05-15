@@ -89,7 +89,9 @@ client.on(Events.MessageCreate, async (c) => {
 
   const botMentioned = c.mentions.users.some((user) => user.id === botUser.id);
   if (botMentioned) {
+    const loading = c.react('⏳');
     await chat(c.channel);
+    loading.then((emoji) => emoji.users.remove()).catch(() => {});
   } else {
     const agentChatting = agentManager.checkChatting(c.channelId);
     const triggerTime = agentChatting
@@ -102,7 +104,9 @@ client.on(Events.MessageCreate, async (c) => {
 
       if (agentChatting || Math.random() < 0.1) {
         logger.info('Start triggered chat');
+        const loading = c.react('⏳');
         await chat(c.channel);
+        loading.then((emoji) => emoji.users.remove()).catch(() => {});
       }
     }, triggerTime);
     chatTriggers.set(c.channelId, triggerId);
