@@ -1,4 +1,6 @@
 import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
+import type { UnknownTool } from '@/tool/tool';
+import { WeatherTool } from '@/tool/weather-tool';
 import { Agent } from './agent';
 
 export class AgentManager {
@@ -13,7 +15,8 @@ export class AgentManager {
   async chat(channelId: string, chatHistory: ChatBufferItem[]): Promise<string> {
     let agent = this.agents.get(channelId);
     if (!agent) {
-      agent = new Agent(this.agentName);
+      const tools = this.makeTools();
+      agent = new Agent(this.agentName, tools);
       this.agents.set(channelId, agent);
       await agent.init(this.agentProfile, this.agentLang);
     }
@@ -30,5 +33,10 @@ export class AgentManager {
     const agent = this.agents.get(channelId);
     if (!agent) return;
     agent.chatting = false;
+  }
+
+  private makeTools(): UnknownTool[] {
+    const weather = new WeatherTool();
+    return [weather];
   }
 }

@@ -1,4 +1,6 @@
 import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
+import type { UnknownTool } from '@/tool/tool';
+import { ToolParser } from '@/tool/tool-parser';
 import { format as formatTimeAgo } from 'timeago.js';
 import { ChatMessage } from '../ai/chat-message';
 import { OpenAIChatModel } from '../ai/chat-models';
@@ -11,7 +13,10 @@ import { InsideInputStep, InsideMemory, InsideSystemPromptStep } from '../memory
 import { ResponseStep } from '../memory/memory';
 
 export class Agent {
-  constructor(private readonly name: string) {}
+  constructor(
+    private readonly name: string,
+    private readonly tools: UnknownTool[],
+  ) {}
 
   private readonly chatModel = new OpenAIChatModel();
   private readonly network = new Network(db, this.chatModel);
@@ -22,6 +27,7 @@ export class Agent {
   private thinking = false;
   private chatHistory: ChatBufferItem[] = [];
   private prevResponse = '';
+  private prevToolResults = '';
 
   async init(profile: string, lang: string): Promise<void> {
     const profileMemory = await this.extractMemory(this.name, [
@@ -36,7 +42,7 @@ export class Agent {
     this.insideMemory.clear();
 
     this.chatMemory.addStep(new ChatSystemPromptStep(this.name, lang, initialMemory));
-    this.insideMemory.addStep(new InsideSystemPromptStep(this.name, lang, initialMemory));
+    this.insideMemory.addStep(new InsideSystemPromptStep(this.name, lang, initialMemory, this.tools));
   }
 
   async chat(incomingChatHistory: ChatBufferItem[]): Promise<string> {
@@ -50,7 +56,7 @@ export class Agent {
     try {
       const chatHistory = this.chatHistory.splice(0, chatHistoryLen);
 
-      const chatInput = new ChatInputStep(chatHistory, '', '', this.name);
+      const chatInput = new ChatInputStep(chatHistory, '', '', '', this.name);
       this.chatMemory.addStep(chatInput);
 
       const newMemory = await this.extractMemory(this.name, this.chatMemory.toMessages().slice(1));
@@ -59,7 +65,9 @@ export class Agent {
       const activatedMemory = await this.updateAndGetActivatedMemories(this.network, newMemory, 30);
       logger.info(`Activated memory:\n${activatedMemory}`);
 
-      this.insideMemory.addStep(new InsideInputStep(this.prevResponse, chatHistory, activatedMemory, this.name));
+      this.insideMemory.addStep(
+        new InsideInputStep(this.prevResponse, this.prevToolResults, chatHistory, activatedMemory, this.name),
+      );
       const innerThought = await this.chatModel.chat(this.insideMemory.toMessages());
       logger.info(`Inner thought:\n${innerThought.content}`);
       this.insideMemory.addStep(new ResponseStep(innerThought.content));
@@ -71,8 +79,39 @@ export class Agent {
         this.insideMemory.removeOldStepsAndInsertSummary(summary.content);
       }
 
+      let toolResults = '';
+      const toolParser = new ToolParser();
+      const toolCalls = toolParser.parseAll(innerThought.content);
+
+      if (toolCalls.length > 0) {
+        logger.info(`Detected functions: ${toolCalls.map((f) => f.function).join(', ')}`);
+        for (const func of toolCalls) {
+          const tool = this.tools.find((t) => t.name === func.function);
+          if (tool) {
+            logger.info(`Executing tool: ${tool.name} with inputs: ${JSON.stringify(func.inputs)}`);
+            try {
+              const input = await tool.parseInput(func.inputs);
+              const toolResult = await tool.execute(input);
+              toolResults += `\n\nTool ${tool.name} result:\n${toolResult}`;
+            } catch (err) {
+              logger.error(err, `Failed to execute tool ${tool.name}`);
+              toolResults += `\n\nTool ${tool.name} failed: ${(err as Error).message}`;
+            }
+          } else {
+            logger.warn(`Tool ${func.function} not found`);
+            toolResults += `\n\nTool ${func.function} not found.`;
+          }
+        }
+      }
+
+      this.prevToolResults = toolResults.trim();
+      if (this.prevToolResults) {
+        logger.info(`Tool results:\n${this.prevToolResults}`);
+      }
+
       chatInput.setMemory(activatedMemory);
       chatInput.setInnerThought(innerThought.content);
+      chatInput.setToolResult(this.prevToolResults);
 
       const response = await this.chatModel.chat(this.chatMemory.toMessages());
       logger.info(`Response:\n${response.content}`);
@@ -82,6 +121,7 @@ export class Agent {
 
       chatInput.setMemory('');
       chatInput.setInnerThought('');
+      chatInput.setToolResult('');
 
       if (this.chatMemory.needSummary()) {
         const summary = await this.chatModel.chat(this.chatMemory.toSummaryPrompts(this.name));

@@ -89,7 +89,12 @@ Your activated memories:
 Your inner thoughts:
 <thought>
 (Your internal thought process. Base your response on this, but don't mention these thoughts directly.)
+(Tool calls if any)
 </thought>
+
+<tool_result>
+(Tool results if any)
+</tool_result>
 
 Your response as ${name}:
 \`\`\`
@@ -129,6 +134,7 @@ export class ChatInputStep extends MemoryStep {
     private readonly chatHistory: ChatBufferItem[],
     private memory: string,
     private innerThought: string,
+    private toolResult: string,
     private readonly name: string,
   ) {
     super();
@@ -140,6 +146,10 @@ export class ChatInputStep extends MemoryStep {
 
   setInnerThought(thought: string) {
     this.innerThought = thought;
+  }
+
+  setToolResult(toolResult: string) {
+    this.toolResult = toolResult;
   }
 
   toMessage(): ChatMessage[] {
@@ -162,7 +172,7 @@ Your inner thoughts:
 <thought>
 ${this.innerThought}
 </thought>
-
+${this.toolResult ? `\n<tool_result>\n${this.toolResult}\n</tool_result>\n` : ''}
 Your response as ${this.name}:`,
           this.chatHistory
             .values()
