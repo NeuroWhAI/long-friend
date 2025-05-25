@@ -82,7 +82,7 @@ Message1
 
 Your active memories:
 <memory>
-- Memory1
+- Memory1 (Creation time)
 - ...
 </memory>
 
