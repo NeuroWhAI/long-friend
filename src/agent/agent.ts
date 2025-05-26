@@ -1,4 +1,5 @@
 import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
+import { SummaryInputStep, SummaryMemory, SummarySystemPromptStep } from '@/memory/summary-memory';
 import type { UnknownTool } from '@/tool/tool';
 import { ToolParser } from '@/tool/tool-parser';
 import { format as formatTimeAgo } from 'timeago.js';
@@ -130,6 +131,11 @@ export class Agent {
         this.chatMemory.removeOldStepsAndInsertSummary(summary.content);
       }
 
+      if (this.prevToolResults.length > 300) {
+        this.prevToolResults = await this.summarize(this.prevToolResults);
+        logger.info(`Summarized tool results:\n${this.prevToolResults}`);
+      }
+
       this.chatting = true;
 
       return response.content;
@@ -148,7 +154,16 @@ export class Agent {
     memory.addStep(new ExtractStartStep());
 
     const response = await this.chatModel.chat(memory.toMessages());
-    return response.content;
+    return response.content.trim();
+  }
+
+  private async summarize(content: string): Promise<string> {
+    const memory = new SummaryMemory();
+    memory.addStep(new SummarySystemPromptStep());
+    memory.addStep(new SummaryInputStep(content));
+
+    const response = await this.chatModel.chat(memory.toMessages());
+    return response.content.trim();
   }
 
   private async updateAndGetActivatedMemories(network: Network, memory: string, topK: number): Promise<string> {
