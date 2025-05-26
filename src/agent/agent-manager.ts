@@ -1,4 +1,5 @@
 import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
+import { SearchTool } from '@/tool/search-tool';
 import type { UnknownTool } from '@/tool/tool';
 import { WeatherTool } from '@/tool/weather-tool';
 import { Agent } from './agent';
@@ -37,6 +38,7 @@ export class AgentManager {
 
   private makeTools(): UnknownTool[] {
     const weather = new WeatherTool();
-    return [weather];
+    const search = new SearchTool();
+    return [weather, search];
   }
 }

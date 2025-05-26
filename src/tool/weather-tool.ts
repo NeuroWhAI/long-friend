@@ -12,7 +12,7 @@ export class WeatherTool extends Tool<WeatherToolInput> {
       name: 'get_weather',
       description: 'Get the current weather for a specified location.',
       inputSchema: z.object({
-        city: z.string().describe('The city and state(optional) in English, e.g. Raleigh,North Carolina'),
+        city: z.string().describe('The city and state(optional) in English. e.g. Raleigh,North Carolina'),
       }),
     });
   }

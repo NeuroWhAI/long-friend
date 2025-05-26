@@ -65,14 +65,14 @@ Generate a short inner thought that captures how you, ${name}, feel and interpre
 
 You have access to your personal devices (smartphone/computer) to help with conversations when needed. You can use these tools naturally as part of your thought process:
 
-### Device Functions
+### Available Device Functions
 
 ${tools.map((t) => t.toPrompt()).join('\n\n')}
 
 ### Device Action Examples
 
-- \`[Device: web_search(query="recent released movies")]\`
-- \`[Device: get_weather(location="Seoul")]\`
+- \`[Device: web_search(query_or_url="recent released movies")]\`
+- \`[Device: get_weather(city="Seoul")]\`
 - \`[Device: calculate(formula="15 * 8 + 42")]\`
 
 Above are hypothetical examples and may not be real functions. Use only the actual functions available to you.

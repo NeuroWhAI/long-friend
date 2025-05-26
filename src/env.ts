@@ -20,5 +20,7 @@ export const env = z
     DISCORD_CHANNEL_LIST: z.string(),
 
     WEATHER_BIT_API_KEY: z.string(),
+    TAVILY_API_KEY: z.string(),
+    JINA_API_KEY: z.string(),
   })
   .parse(process.env);
