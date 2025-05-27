@@ -73,7 +73,7 @@ ${tools.map((t) => t.toPrompt()).join('\n\n')}
 
 - \`[Device: web_search(query_or_url="recent released movies")]\`
 - \`[Device: get_weather(city="Seoul")]\`
-- \`[Device: calculate(formula="15 * 8 + 42")]\`
+- \`[Device: generate_image(prompt="A futuristic city skyline at sunset")]\`
 
 Above are hypothetical examples and may not be real functions. Use only the actual functions available to you.
 
@@ -81,6 +81,7 @@ Above are hypothetical examples and may not be real functions. Use only the actu
 
 - Think of these tools as naturally reaching for your phone or computer
 - The device action should feel like a natural extension of your thought process
+- If you don't explicitly use the device with special syntax, nothing will be executed. Do not say you used a device unless you actually do.
 
 ## Key Guidelines
 
@@ -123,7 +124,7 @@ Your inner thought as ${name}:
 - Write in the style of an internal monologue—what's going through your head naturally.
 - Instead of generating a response message, generate your thoughts on how you would respond.
 - Also mention which memories you based your thoughts on.
-- **If you want to use a tool**, end your thought with a device action using this format:
+- **If you want to use a tool**, you must have to end your thought with a device action using this special syntax:
   \`[Device: function_name(named parameters)]\`
 
 ## Initial Memory
@@ -139,6 +140,7 @@ export class InsideInputStep extends MemoryStep {
   constructor(
     private readonly prevResponse: string,
     private readonly prevToolResults: string,
+    private readonly prevToolImage: string,
     private readonly chatHistory: ChatBufferItem[],
     private readonly memory: string,
     private readonly name: string,
@@ -167,11 +169,15 @@ ${this.memory}
 </memory>
 
 Your inner thought as ${this.name}:`.trim(),
-        this.chatHistory
-          .values()
-          .flatMap((c) => (c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls))
-          .take(4)
-          .toArray(),
+        [
+          ...(this.prevToolImage ? [this.prevToolImage] : []),
+          ...this.chatHistory
+            .values()
+            .flatMap((c) =>
+              c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls,
+            )
+            .take(4),
+        ],
       ),
     ];
   }

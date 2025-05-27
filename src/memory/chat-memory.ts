@@ -135,6 +135,7 @@ export class ChatInputStep extends MemoryStep {
     private memory: string,
     private innerThought: string,
     private toolResult: string,
+    private toolImage: string,
     private readonly name: string,
   ) {
     super();
@@ -148,8 +149,9 @@ export class ChatInputStep extends MemoryStep {
     this.innerThought = thought;
   }
 
-  setToolResult(toolResult: string) {
+  setToolResult(toolResult: string, toolImage: string) {
     this.toolResult = toolResult;
+    this.toolImage = toolImage;
   }
 
   toMessage(): ChatMessage[] {
@@ -174,13 +176,15 @@ ${this.innerThought}
 </thought>
 ${this.toolResult ? `\n<tool_result>\n${this.toolResult}\n</tool_result>\n` : ''}
 Your response as ${this.name}:`,
-          this.chatHistory
-            .values()
-            .flatMap((c) =>
-              c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls,
-            )
-            .take(4)
-            .toArray(),
+          [
+            ...this.chatHistory
+              .values()
+              .flatMap((c) =>
+                c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls,
+              )
+              .take(4),
+            ...(this.toolImage ? [this.toolImage] : []),
+          ],
         ),
       ];
     } else {

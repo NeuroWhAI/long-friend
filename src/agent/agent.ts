@@ -2,6 +2,7 @@ import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
 import { SummaryInputStep, SummaryMemory, SummarySystemPromptStep } from '@/memory/summary-memory';
 import type { UnknownTool } from '@/tool/tool';
 import { ToolParser } from '@/tool/tool-parser';
+import { extension } from 'mime-types';
 import { format as formatTimeAgo } from 'timeago.js';
 import { ChatMessage } from '../ai/chat-message';
 import { OpenAIChatModel } from '../ai/chat-models';
@@ -29,6 +30,7 @@ export class Agent {
   private chatHistory: ChatBufferItem[] = [];
   private prevResponse = '';
   private prevToolResults = '';
+  private prevToolImage = '';
 
   async init(profile: string, lang: string): Promise<void> {
     const profileMemory = await this.extractMemory(this.name, [
@@ -46,7 +48,10 @@ export class Agent {
     this.insideMemory.addStep(new InsideSystemPromptStep(this.name, lang, initialMemory, this.tools));
   }
 
-  async chat(incomingChatHistory: ChatBufferItem[]): Promise<string> {
+  async chat(
+    incomingChatHistory: ChatBufferItem[],
+    fileCallback: (file: Buffer, format: string) => Promise<void>,
+  ): Promise<string> {
     const chatHistoryLen = this.chatHistory.push(...incomingChatHistory);
 
     if (this.thinking) {
@@ -57,7 +62,7 @@ export class Agent {
     try {
       const chatHistory = this.chatHistory.splice(0, chatHistoryLen);
 
-      const chatInput = new ChatInputStep(chatHistory, '', '', '', this.name);
+      const chatInput = new ChatInputStep(chatHistory, '', '', '', '', this.name);
       this.chatMemory.addStep(chatInput);
 
       const newMemory = await this.extractMemory(this.name, this.chatMemory.toMessages().slice(1));
@@ -67,7 +72,14 @@ export class Agent {
       logger.info(`Activated memory:\n${activatedMemory}`);
 
       this.insideMemory.addStep(
-        new InsideInputStep(this.prevResponse, this.prevToolResults, chatHistory, activatedMemory, this.name),
+        new InsideInputStep(
+          this.prevResponse,
+          this.prevToolResults,
+          this.prevToolImage,
+          chatHistory,
+          activatedMemory,
+          this.name,
+        ),
       );
       const innerThought = await this.chatModel.chat(this.insideMemory.toMessages());
       logger.info(`Inner thought:\n${innerThought.content}`);
@@ -81,6 +93,7 @@ export class Agent {
       }
 
       let toolResults = '';
+      let toolImage = '';
       const toolParser = new ToolParser();
       const toolCalls = toolParser.parseAll(innerThought.content);
 
@@ -93,7 +106,22 @@ export class Agent {
             try {
               const input = await tool.parseInput(func.inputs);
               const toolResult = await tool.execute(input);
-              toolResults += `\n\nTool ${tool.name} result:\n${toolResult}`;
+
+              if (toolResult.startsWith('data:')) {
+                const fileData = toolResult.substring(toolResult.indexOf(',') + 1);
+                const fileMime = /data:([\w\/]+);/g.exec(toolResult)?.[1] ?? 'application/octet-stream';
+                const fileFormat = extension(fileMime) || 'bin';
+                await fileCallback(Buffer.from(fileData, 'base64'), fileFormat);
+
+                if (toolResult.startsWith('data:image/')) {
+                  toolImage = toolResult;
+                  toolResults += `\n\nTool ${tool.name} result:\nThe image has been shared successfully.\n\n*(1 image attached)*`;
+                } else {
+                  toolResults += `\n\nTool ${tool.name} result:\nThe file has been shared successfully.`;
+                }
+              } else {
+                toolResults += `\n\nTool ${tool.name} result:\n${toolResult}`;
+              }
             } catch (err) {
               logger.error(err, `Failed to execute tool ${tool.name}`);
               toolResults += `\n\nTool ${tool.name} failed: ${(err as Error).message}`;
@@ -110,9 +138,14 @@ export class Agent {
         logger.info(`Tool results:\n${this.prevToolResults}`);
       }
 
+      this.prevToolImage = toolImage;
+      if (this.prevToolImage) {
+        logger.info('Image generated');
+      }
+
       chatInput.setMemory(activatedMemory);
       chatInput.setInnerThought(innerThought.content);
-      chatInput.setToolResult(this.prevToolResults);
+      chatInput.setToolResult(this.prevToolResults, this.prevToolImage);
 
       const response = await this.chatModel.chat(this.chatMemory.toMessages());
       logger.info(`Response:\n${response.content}`);
@@ -122,7 +155,9 @@ export class Agent {
 
       chatInput.setMemory('');
       chatInput.setInnerThought('');
-      chatInput.setToolResult('');
+      if (!this.prevToolImage) {
+        chatInput.setToolResult('', '');
+      }
 
       if (this.chatMemory.needSummary()) {
         const summary = await this.chatModel.chat(this.chatMemory.toSummaryPrompts(this.name));

@@ -1,4 +1,5 @@
 import type { ChatBufferItem } from '@/chat-buffer/chat-buffer-item';
+import { ImagenTool } from '@/tool/imagen-tool';
 import { SearchTool } from '@/tool/search-tool';
 import type { UnknownTool } from '@/tool/tool';
 import { WeatherTool } from '@/tool/weather-tool';
@@ -13,7 +14,11 @@ export class AgentManager {
 
   private readonly agents: Map<string, Agent> = new Map();
 
-  async chat(channelId: string, chatHistory: ChatBufferItem[]): Promise<string> {
+  async chat(
+    channelId: string,
+    chatHistory: ChatBufferItem[],
+    fileCallback: (file: Buffer, format: string) => Promise<void>,
+  ): Promise<string> {
     let agent = this.agents.get(channelId);
     if (!agent) {
       const tools = this.makeTools();
@@ -21,7 +26,7 @@ export class AgentManager {
       this.agents.set(channelId, agent);
       await agent.init(this.agentProfile, this.agentLang);
     }
-    return await agent.chat(chatHistory);
+    return await agent.chat(chatHistory, fileCallback);
   }
 
   checkChatting(channelId: string): boolean {
@@ -39,6 +44,7 @@ export class AgentManager {
   private makeTools(): UnknownTool[] {
     const weather = new WeatherTool();
     const search = new SearchTool();
-    return [weather, search];
+    const imagen = new ImagenTool();
+    return [weather, search, imagen];
   }
 }

@@ -120,7 +120,11 @@ async function chat(channel: SendableChannels): Promise<void> {
 
   const channelId = channel.id;
   const messages = chatBuffer.flush(channelId);
-  const response = await agentManager.chat(channelId, messages);
+  const response = await agentManager.chat(channelId, messages, async (file, ext) => {
+    await channel.send({
+      files: [{ attachment: file, name: `file.${ext}` }],
+    });
+  });
 
   if (response) {
     await sendMessage(channel, response);
