@@ -4,12 +4,12 @@ export interface ToolCall {
 }
 
 export class ToolParser {
-  private readonly deviceRegex = /\[Device:\s*(\w+)\(([^)]*)\)\]/;
-  private readonly paramRegex = /(\w+)="([^"]*)"/g;
+  private readonly deviceRegex = /\[Device:\s*(\w+)\(((?:[^()"\\]|"(?:\\.|[^"\\])*")*)\)\]/g;
+  private readonly paramRegex = /(\w+)="((?:\\.|[^"\\])*)"/g;
 
   parseAll(text: string): ToolCall[] {
     const results: ToolCall[] = [];
-    const globalRegex = new RegExp(this.deviceRegex.source, 'g');
+    const globalRegex = new RegExp(this.deviceRegex.source, this.deviceRegex.flags);
     let match = globalRegex.exec(text);
 
     while (match !== null) {
