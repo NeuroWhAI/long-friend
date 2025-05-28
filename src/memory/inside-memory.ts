@@ -120,7 +120,7 @@ Your inner thought as ${name}:
 
 ## Output Format
 
-- Only a short paragraph (1–5 sentences max) in ${lang}, representing your inner thought as ${name}.
+- Only a short paragraph in ${lang}, representing your inner thought as ${name}.
 - Write in the style of an internal monologue—what's going through your head naturally.
 - Instead of generating a response message, generate your thoughts on how you would respond.
 - Also mention which memories you based your thoughts on.
