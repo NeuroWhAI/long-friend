@@ -23,7 +23,7 @@ export class SearchTool extends Tool<SearchToolInput> {
     if (queryOrUrl.startsWith('http://') || queryOrUrl.startsWith('https://')) {
       return await this.getUrlContent(queryOrUrl);
     } else {
-      return await this.searchQuery(queryOrUrl, false, false);
+      return await this.searchQuery(queryOrUrl, false, true);
     }
   }
 
