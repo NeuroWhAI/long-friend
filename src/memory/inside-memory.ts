@@ -172,11 +172,10 @@ Your inner thought as ${this.name}:`.trim(),
         [
           ...(this.prevToolImage ? [this.prevToolImage] : []),
           ...this.chatHistory
-            .values()
             .flatMap((c) =>
               c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls,
             )
-            .take(4),
+            .slice(-6),
         ],
       ),
     ];

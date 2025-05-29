@@ -178,11 +178,10 @@ ${this.toolResult ? `\n<tool_result>\n${this.toolResult}\n</tool_result>\n` : ''
 Your response as ${this.name}:`,
           [
             ...this.chatHistory
-              .values()
               .flatMap((c) =>
                 c.refMessage?.imageUrls.length ? [...c.refMessage.imageUrls, ...c.imageUrls] : c.imageUrls,
               )
-              .take(4),
+              .slice(-6),
             ...(this.toolImage ? [this.toolImage] : []),
           ],
         ),
