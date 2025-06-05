@@ -62,6 +62,15 @@ export class Agent {
     try {
       const chatHistory = this.chatHistory.splice(0, chatHistoryLen);
 
+      for (const item of chatHistory) {
+        if (item.checkImageExpired()) {
+          item.expireImages();
+        }
+        if (item.refMessage?.checkImageExpired()) {
+          item.refMessage.expireImages();
+        }
+      }
+
       const chatInput = new ChatInputStep(chatHistory, '', '', '', '', this.name);
       this.chatMemory.addStep(chatInput);
 

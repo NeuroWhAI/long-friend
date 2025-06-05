@@ -56,6 +56,17 @@ export class ChatBufferItem {
     return prompt;
   }
 
+  checkImageExpired(): boolean {
+    const now = Date.now();
+    const IMAGE_EXPIRE_MS = 20 * 3600 * 1000; // 20시간
+    return this.imageUrls.length > 0 && now - this.date.getTime() > IMAGE_EXPIRE_MS;
+  }
+
+  expireImages(): void {
+    this.imageUrls = [];
+    this.content += `${this.content ? '\n' : ''}(image expired)`;
+  }
+
   static async createFrom(client: Client, msg: Message): Promise<ChatBufferItem> {
     const maxImageSize = 20 * 1024 * 1024 - 100;
 
