@@ -24,6 +24,7 @@ Summarize the conversation context using these guidelines:
    - Create a concise bullet-point summary (5-10 points maximum)
    - Maintain chronological order of the conversation
    - Use simple, direct language with short sentences
+   - When attributing statements or actions, include the speaker's name if available
    - Avoid complex words, idioms, or ambiguous phrasing
 
 3. What to exclude:
