@@ -156,6 +156,15 @@ export class ChatInputStep extends MemoryStep {
   }
 
   toMessage(): ChatMessage[] {
+    for (const item of this.chatHistory) {
+      if (item.checkImageExpired()) {
+        item.expireImages();
+      }
+      if (item.refMessage?.checkImageExpired()) {
+        item.refMessage.expireImages();
+      }
+    }
+
     if (this.innerThought) {
       return [
         new ChatMessage(

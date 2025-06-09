@@ -149,6 +149,15 @@ export class InsideInputStep extends MemoryStep {
   }
 
   toMessage(): ChatMessage[] {
+    for (const item of this.chatHistory) {
+      if (item.checkImageExpired()) {
+        item.expireImages();
+      }
+      if (item.refMessage?.checkImageExpired()) {
+        item.refMessage.expireImages();
+      }
+    }
+
     const prevToolResults = this.prevToolResults
       ? `Previous tool results:\n<tool_result>\n${this.prevToolResults}\n</tool_result>\n`
       : '';
